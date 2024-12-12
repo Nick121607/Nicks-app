@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Santa Tetris</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            background-color: #333;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="300" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const ROWS = 20;
+        const COLS = 10;
+        const BLOCK_SIZE = 30;
+        
+        const colors = ['red', 'green', 'blue', 'yellow', 'orange', 'purple', 'cyan'];
+        const shapes = [
+            [[1, 1, 1, 1]], // I
+            [[1, 1], [1, 1]], // O
+            [[0, 1, 0], [1, 1, 1]], // T
+            [[1, 0, 0], [1, 1, 1]], // L
+            [[0, 0, 1], [1, 1, 1]], // J
+            [[0, 1, 1], [1, 1, 0]], // S
+            [[1, 1, 0], [0, 1, 1]] // Z
+        ];
+
+        let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+        let currentPiece = null;
+        let currentX = 0;
+        let currentY = 0;
+        let score = 0;
+
+        function createPiece() {
+            const shapeIndex = Math.floor(Math.random() * shapes.length);
+            return {
+                shape: shapes[shapeIndex],
+                color: colors[shapeIndex]
+            };
+        }
+
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            board.forEach((row, y) => {
+                row.forEach((cell, x) => {
+                    if (cell) {
+                        ctx.fillStyle = cell;
+                        ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                        ctx.strokeStyle = 'white';
+                        ctx.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                    }
+                });
+            });
+        }
+
+        function drawPiece() {
+            currentPiece.shape.forEach((row, y) => {
+                row.forEach((cell, x) => {
+                    if (cell) {
+                        ctx.fillStyle = currentPiece.color;
+                        ctx.fillRect((currentX + x) * BLOCK_SIZE, (currentY + y) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                        ctx.strokeStyle = 'white';
+                        ctx.strokeRect((currentX + x) * BLOCK_SIZE, (currentY + y) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                    }
+                });
+            });
+        }
+
+        function canMove(newX, newY, newShape) {
+            return newShape.every((row, y) => {
+                return row.every((cell, x) => {
+                    if (!cell) return true;
+                    const nx = newX + x;
+                    const ny = newY + y;
+                    return nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && !board[ny][nx];
+                });
+            });
+        }
+
+        function mergePiece() {
+            currentPiece.shape.forEach((row, y) => {
+                row.forEach((cell, x) => {
+                    if (cell) {
+                        board[currentY + y][currentX + x] = currentPiece.color;
+                    }
+                });
+            });
+        }
+
+        function clearLines() {
+            board = board.filter(row => !row.every(cell => cell));
+            const linesCleared = ROWS - board.length;
+            for (let i = 0; i < linesCleared; i++) {
+                board.unshift(Array(COLS).fill(0));
+            }
+            score += linesCleared;
+        }
+
+        function rotatePiece() {
+            const newShape = currentPiece.shape[0].map((_, i) => currentPiece.shape.map(row => row[i]).reverse());
+            if (canMove(currentX, currentY, newShape)) {
+                currentPiece.shape = newShape;
+            }
+        }
+
+        function update() {
+            if (canMove(currentX, currentY + 1, currentPiece.shape)) {
+                currentY++;
+            } else {
+                mergePiece();
+                clearLines();
+                currentPiece = createPiece();
+                currentX = Math.floor(COLS / 2) - 1;
+                currentY = 0;
+                if (!canMove(currentX, currentY, currentPiece.shape)) {
+                    alert(`Game Over! Your score: ${score}`);
+                    board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+                    score = 0;
+                }
+            }
+            drawBoard();
+            drawPiece();
+        }
+
+        function startGame() {
+            currentPiece = createPiece();
+            currentX = Math.floor(COLS / 2) - 1;
+            currentY = 0;
+            setInterval(update, 500);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' && canMove(currentX - 1, currentY, currentPiece.shape)) {
+                currentX--;
+            } else if (e.key === 'ArrowRight' && canMove(currentX + 1, currentY, currentPiece.shape)) {
+                currentX++;
+            } else if (e.key === 'ArrowDown') {
+                update();
+            } else if (e.key === 'ArrowUp') {
+                rotatePiece();
+            }
+        });
+
+        startGame();
+    </script>
+</body>
+</html>
